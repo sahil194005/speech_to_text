@@ -1,0 +1,173 @@
+  <!DOCTYPE html>
+<html>
+<head>
+  <title>Speech to Text</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-image: url('https://itchronicles.com/wp-content/uploads/2021/02/speech-to-text-healthcare-1024x576.png.webp');
+      background-repeat: no-repeat;
+      background-size: cover;
+    
+    
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 30px;
+      font-size: 60px;
+      color: #fff;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      font-family: 'Comic Sans MS (cursive)', sans-serif;
+    }
+
+    .container {
+      max-width: 750px;
+      margin: 30px auto;
+      padding: 20px;
+      background-color: #f4f4f4;
+      border-radius: 5px;
+      box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s ease;
+    }
+
+    .container:hover {
+      transform: scale(1.05);
+    }
+
+  
+
+    .button {
+      display: block;
+      margin: 10px auto;
+      padding: 10px 20px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .button:hover {
+      background-color: #45a049;
+    }
+
+
+    #resultContainer {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #ffffff;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      min-height: 100px;
+      font-family: 'Arial', sans-serif;
+      font-size: 20px;
+      color: #333;
+      text-align: center;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <h1>Speech to Text Conversion</h1>
+  <div class="container">
+    <button id="startButton" class="button">Start Recording</button>
+    <button id="stopButton" class="button" disabled>Stop Recording</button>
+    <button id="convertButton" class="button" disabled>Convert</button>
+    <button id="displayTextButton" class="button" disabled>Display Text</button>
+    <div id="resultContainer"></div>
+  </div>
+
+  <script>
+     document.addEventListener('DOMContentLoaded', () => {
+      let mediaRecorder;
+      let audioChunks = [];
+      const startButton = document.getElementById('startButton');
+      const stopButton = document.getElementById('stopButton');
+      const convertButton = document.getElementById('convertButton');
+      const displayTextButton = document.getElementById('displayTextButton');
+      const resultContainer = document.getElementById('resultContainer');
+      let socket;
+
+      startButton.addEventListener('click', startRecording);
+      stopButton.addEventListener('click', stopRecording);
+      convertButton.addEventListener('click', convertAudioToText);
+      displayTextButton.addEventListener('click', displayText);
+
+      function startRecording() {
+        audioChunks = [];
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then((stream) => {
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.addEventListener('dataavailable', (event) => {
+              audioChunks.push(event.data);
+            });
+
+            mediaRecorder.addEventListener('stop', () => {
+              startButton.disabled = false;
+              stopButton.disabled = true;
+              convertButton.disabled = false;
+              displayTextButton.disabled = false;
+            });
+
+            startButton.disabled = true;
+            stopButton.disabled = false;
+            convertButton.disabled = true;
+            displayTextButton.disabled = true;
+            mediaRecorder.start();
+          })
+          .catch((error) => {
+            console.error(error);
+            alert('An error occurred while accessing the microphone.');
+          });
+      }
+
+      function stopRecording() {
+        mediaRecorder.stop();
+      }
+
+      function convertAudioToText() {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+
+        reader.onload = function(event) {
+          const audioData = event.target.result.split(',')[1];
+          fetch('http://localhost:3000/api/audio-to-text', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ audioData })
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              localStorage.setItem('textData', data.text);
+              displayTextButton.disabled = false;
+            })
+            .catch((error) => {
+              console.error('Error:', error);
+              alert('An error occurred during audio-to-text conversion.');
+            });
+        };
+
+        reader.readAsDataURL(audioBlob);
+      }
+
+      function displayText() {
+        const textData = localStorage.getItem('textData');
+        resultContainer.textContent = textData ? textData : 'No text available.';
+      }
+    });
+  </script>
+</body>
+</html> 
+
+    
